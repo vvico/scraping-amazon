@@ -1,7 +1,7 @@
 import puppeteer from "puppeteer"
 import dotenv from "dotenv"
-// import { initDb, closeDb, getProductFromCode, insertProduct, db } from "../config/dbconfig.js"
-import { initDb, getProductFromCode, deleteAll, insertProduct } from "../config/db.js"
+import { TYPE } from "./Constants.js"
+import { getProductFromCode, insertProduct } from "../config/db.js"
 
 dotenv.config();
 
@@ -27,7 +27,7 @@ export async function navigateWebPage() {
     await browser.close();
 }
 
-export async function getDataFromWebPage(link) {
+export async function getDataFromWebPage(link, type) {
     const browser = await puppeteer.launch({
         headless: true
     });
@@ -38,21 +38,25 @@ export async function getDataFromWebPage(link) {
         deviceScaleFactor: 1,
     });
     await page.goto(link);
-    await page.waitForSelector('.GridItem-module__container_PW2gdkwTj1GQzdwJjejN');
-    const productListLinks = await page.evaluate(async () => {
-        window.scrollTo(0, 500);
-        const products = document.querySelectorAll('.GridItem-module__container_PW2gdkwTj1GQzdwJjejN');
-        return [...products].map((product) => {
-            const linkToPtoduct = product.querySelector('a').getAttribute("href");
-            return linkToPtoduct;
+    await page.setDefaultTimeout(10000);
+    let productListLinks = [];
+    try{
+        await page.waitForSelector('.GridItem-module__container_PW2gdkwTj1GQzdwJjejN',);
+        productListLinks = await page.evaluate(async () => {
+            window.scrollTo(0, 500);
+            const products = document.querySelectorAll('.GridItem-module__container_PW2gdkwTj1GQzdwJjejN');
+            return [...products].map((product) => {
+                const linkToPtoduct = product.querySelector('a').getAttribute("href");
+                return linkToPtoduct;
+            });
         });
-    });
-    console.log(productListLinks);
+    }catch(e){
+        console.error("Error al leer los items");
+        console.log(productListLinks);
+    }
     await browser.close();
-    // await page.close();
 
     for await (let productLink of productListLinks) {
-        // productPage = await browser.newPage();
         const browser2 = await puppeteer.launch({
             headless: true
         });
@@ -65,47 +69,68 @@ export async function getDataFromWebPage(link) {
         });
 
         await productPage.goto(productLink);
-        await getItemData(productPage, productLink);
+        await getItemData(productPage, productLink, type);
         await browser2.close();
     }
-    // const productPage = await browser.newPage();
-    // await productPage.goto(productListLinks[0]);
-    // await getItemData(productPage);
-    // await productPage.close();
-    // console.log(productListLinks.length);
 }
 
-export async function getItemData(page, link) {
+export async function getDataFromWebArray(products, type) {
+    for await (let productLink of products) {
+        const browser = await puppeteer.launch({
+            headless: true
+        });
+
+        const productPage = await browser.newPage();
+        await productPage.setViewport({
+            width: 1920,
+            height: 4320,
+            deviceScaleFactor: 1,
+        });
+
+        await productPage.goto(productLink);
+        await productPage.setDefaultTimeout(10000);
+        await getItemData(productPage, productLink, type);
+        await browser.close();
+    }
+}
+
+export async function getItemData(page, link, type) {
     const productCode = getProductCode(link);
     const AfiliatedUrl = getAfiliatedLink(productCode);
-    console.log(productCode)
-    //await deleteAll();
     const productDb = await getProductFromCode(productCode);
+    let data = null;
+
     if (productDb === undefined) {
-        await page.waitForSelector('#centerCol');
-        const data = await page.evaluate(() => {
-            const quote = document.querySelector("#centerCol");
-            const title = quote.querySelector("#productTitle").innerText;
-            const discount = quote.querySelector(".savingsPercentage").innerText;
-            const discountPrice = quote.querySelector(".aok-offscreen").innerText.split(" c")[0];
-            const originalPrice = quote.querySelector(".a-text-price").innerText.split("\n")[0];
-            return {
-                title,
-                discount,
-                discountPrice,
-                originalPrice
-            };
-        });
-        
-        await insertProduct(productCode, data.discount, data.discountPrice, AfiliatedUrl);
-        const message = await createMessage(data, AfiliatedUrl);
-        await sendTelegramMessage(message);
+        try{
+            await page.waitForSelector('#centerCol');
+            data = await page.evaluate(() => {
+                const titleDiv = document.querySelector("#centerCol");
+                const title = titleDiv.querySelector("#productTitle").innerText;
+                const priceDiv = document.querySelector("#corePriceDisplay_desktop_feature_div");
+                const discount = priceDiv.querySelector(".savingsPercentage").innerText;
+                const discountPrice = priceDiv.querySelector(".aok-offscreen").innerText.split(" c")[0];
+                const originalPrice = priceDiv.querySelector(".a-text-price").innerText.split("\n")[0];
+                return {
+                    title,
+                    discount,
+                    discountPrice,
+                    originalPrice
+                };
+            });
+        }catch(e){
+            console.error("Error al leer detalle de producto: " + e);
+            console.log(productCode);
+        }
+        if(data !== null){
+            await insertProduct(productCode, data.discount, data.discountPrice, AfiliatedUrl);
+            const message = await createMessage(data, AfiliatedUrl);
+            await sendTelegramMessages(message, type);
+        }
     }
 }
 
 function getAfiliatedLink(productCode) {
     const AfiliatedUrl = `https://www.amazon.es/dp/${productCode}/ref=nosim?tag=tecnoacierto_21&th=1`;
-    console.log(AfiliatedUrl);
     return AfiliatedUrl;
 }
 
@@ -123,16 +148,50 @@ async function createMessage(data, url) {
         + "✅ *PRECIO OFERTA:* ‼️ " + data.discountPrice + " ‼️" + lineBreak
         + "❌ *PVP:* " + data.originalPrice + lineBreak
         + "📉 *AHORRO:* " + data.discount + " 🔥" + lineBreak
-        + "🔗 " + " [ENLACE AMAZON](" + url + ")";
+        + "🔗 " + " [IR A AMAZON](" + url + ")";
 
     return message;
 }
 
+export async function communityMessage() {
+    const lineBreakx2 = "%0A%0A";
+    const lineBreak = "%0A";
+
+    const message = "✳️ *Nuestra Comunidad* ✳️" + lineBreakx2
+        + "🔰 *TODO CON MÁS DEL 25% DE DESCUENTO*‼️" + lineBreakx2
+        // + "🔴 " + "[Acierto Chollos](" + "https://t.me/AciertoChollo" + ") - _Todos nuestros productos_" + lineBreak
+        // + "🟠 " + "[Acierto Chollos +50%](" + "https://t.me/AciertoChollo50" + ") - _Más del 50% descuento_" + lineBreak
+        + "🟢 " + "[TecnoAcierto](" + "https://t.me/tecnoAcierto" + ") - _Los mejores productos de Tecnología_" + lineBreak
+        + "🔵 " + "[Acierto Hogar](" + "https://t.me/AciertoHogar" + ") - _Los mejores productos para el Hogar_" + lineBreakx2
+        + "ℹ️ ÚNETE A NUESTRA COMUNIDAD Y NO TE PIERDAS NADA!";
+
+   await sendTelegramMessage(message, process.env.TOKEN_ACIERTOHOGAR, process.env.CHANNEL_ACIERTOHOGAR);
+    await sendTelegramMessage(message, process.env.TOKEN_TECNOACIERTO, process.env.CHANNEL_TECNOACIERTO);
+}
 // Function to send a message to a Telegram channel
-async function sendTelegramMessage(message) {
+async function sendTelegramMessages(message, type) {
+
+    let token = process.env.TOKEN_TECNOACIERTO;
+    let channel = process.env.CHANNEL_TECNOACIERTO;
+
+    switch (type) {
+        case TYPE.ELECTRONICA:
+            token = process.env.TOKEN_TECNOACIERTO;
+            channel = process.env.CHANNEL_TECNOACIERTO;
+            break;
+        case TYPE.HOGAR:
+            token = process.env.TOKEN_ACIERTOHOGAR;
+            channel = process.env.CHANNEL_ACIERTOHOGAR;
+            break;
+    }
+
+    await sendTelegramMessage(message, token, channel);
+}
+
+async function sendTelegramMessage(message, token, channel) {
     try {
         // Construct the Telegram API endpoint for sending a message
-        const request = await fetch(`https://api.telegram.org/${process.env.TOKEN}/sendMessage?chat_id=${process.env.CHANNEL}&parse_mode=Markdown&text=${message}`, {
+        const request = await fetch(`https://api.telegram.org/${token}/sendMessage?chat_id=${channel}&parse_mode=Markdown&text=${message}`, {
             method: 'GET',
             redirect: 'follow'
         });
