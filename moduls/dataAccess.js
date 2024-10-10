@@ -5,28 +5,6 @@ import { getProductFromCode, insertProduct } from "../config/db.js"
 
 dotenv.config();
 
-export async function captureScreenshot() {
-    const browser = await puppeteer.launch({
-        headless: 'new'
-    });
-    const page = await browser.newPage();
-    await page.goto('https://web.telegram.org/a/#-1002036245383');
-    await page.screenshot({ path: 'example.png' });
-    await browser.close();
-}
-
-export async function navigateWebPage() {
-    const browser = await puppeteer.launch({
-        slowMo: 200,
-        headless: false,
-    });
-    const page = await browser.newPage();
-    await page.goto("https://web.telegram.org/a/#-1002036245383");
-    // await page.click('a[href="/login"]');
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    await browser.close();
-}
-
 export async function getDataFromWebPage(link, type) {
     const browser = await puppeteer.launch({
         headless: true
