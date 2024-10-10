@@ -42,7 +42,7 @@ Additionally, you'll need the following credentials:
 
 1. Clona el repositorio en tu máquina local / Clone the repository to your local machine:
 
-       git clone https://github.com/vvico/scrapting.git
+       git clone https://github.com/vvico/scraping-amazon.git
    
 2. Instala las dependencias utilizando npm / Install the dependencies using npm:
 
