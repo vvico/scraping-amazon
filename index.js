@@ -20,24 +20,26 @@ console.log("opcion: " + option);
 
 async function run() {
   //Borrar productos con más de 1 semana
-  await deleteProductsDays(-7);
+  await deleteProductsDays(-5);
 
   //Electrónica
   await getDataFromWebPage(ELECTRONICA.PORTATIL, TYPE.ELECTRONICA);
   await getDataFromWebPage(ELECTRONICA.MOVIL, TYPE.ELECTRONICA);
   await getDataFromWebPage(ELECTRONICA.TABLET, TYPE.ELECTRONICA);
-  await getDataFromWebPage(ELECTRONICA.MONITOR, TYPE.ELECTRONICA);
+  // await getDataFromWebPage(ELECTRONICA.MONITOR, TYPE.ELECTRONICA);
   await getDataFromWebPage(ELECTRONICA.PC, TYPE.ELECTRONICA);
-  await getDataFromWebPage(ELECTRONICA.AUDIO, TYPE.ELECTRONICA);
+  // await getDataFromWebPage(ELECTRONICA.AUDIO, TYPE.ELECTRONICA);
+  // await getDataFromWebPage(ELECTRONICA.AURICULAR, TYPE.ELECTRONICA);
+  await getDataFromWebPage(ELECTRONICA.WATCH, TYPE.ELECTRONICA);
 
   //Hogar
-  await getDataFromWebPage(HOGAR.CAFETERA, TYPE.HOGAR);
-  await getDataFromWebPage(HOGAR.ELECTRODOMESTICO, TYPE.HOGAR);
-  await getDataFromWebPage(HOGAR.FREIDORA, TYPE.HOGAR);
-  await getDataFromWebPage(HOGAR.ROBOT, TYPE.HOGAR);
+  // await getDataFromWebPage(HOGAR.CAFETERA, TYPE.HOGAR);
+  // await getDataFromWebPage(HOGAR.ELECTRODOMESTICO, TYPE.HOGAR);
+  // await getDataFromWebPage(HOGAR.FREIDORA, TYPE.HOGAR);
+  // await getDataFromWebPage(HOGAR.ROBOT, TYPE.HOGAR);
 
   //Productos individuales
-  await getDataFromWebArray(OTROS_ELECT, TYPE.ELECTRONICA);
-  await getDataFromWebArray(OTROS_HOGAR, TYPE.HOGAR);
+  // await getDataFromWebArray(OTROS_ELECT, TYPE.ELECTRONICA);
+  // await getDataFromWebArray(OTROS_HOGAR, TYPE.HOGAR);
 
 }
